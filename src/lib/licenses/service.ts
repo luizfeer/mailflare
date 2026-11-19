@@ -33,13 +33,20 @@ async function getOrCreateLicenseSettings(env: CloudflareEnv) {
 	return settings;
 }
 
+// Fork change (AGPL-3.0 modification): this self-hosted build always runs with every
+// feature unlocked (unlimited accounts, forwarding, shared mailboxes, branding),
+// as if a Team license were active. Upstream: https://github.com/hieunc229/mailflare
+const SELF_HOSTED_UNLOCKED = true;
+
 function toLicenseStatus(settings: typeof licenseSettings.$inferSelect): LicenseStatus {
-	const active = settings.state === "active" && (settings.plan === "pro" || settings.plan === "team");
+	const licensed = settings.state === "active" && (settings.plan === "pro" || settings.plan === "team");
+	const active = SELF_HOSTED_UNLOCKED || licensed;
+	const plan: LicenseStatus["plan"] = SELF_HOSTED_UNLOCKED ? "team" : licensed ? settings.plan : "community";
 	return {
-		plan: active ? settings.plan : "community",
-		state: settings.state,
+		plan,
+		state: SELF_HOSTED_UNLOCKED ? "active" : settings.state,
 		features: parseFeatures(settings.features),
-		seatLimit: active && settings.plan === "pro" ? settings.seatLimit : null,
+		seatLimit: active && plan === "pro" ? settings.seatLimit : null,
 		instanceId: settings.instanceId,
 		instanceUrl: settings.instanceUrl,
 		active,
